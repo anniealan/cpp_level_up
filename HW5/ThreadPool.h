@@ -81,7 +81,7 @@ public:
         if (pthread_mutex_unlock(&pool->runningMutex) != 0)
           throw std::system_error(errno, std::generic_category());
 
-        task();
+        task.first(task.second);
 
         if (pthread_mutex_lock(&pool->runningMutex) != 0)
           throw std::system_error(errno, std::generic_category());
@@ -97,7 +97,7 @@ public:
       }
     }
   }
-  void addTask(void (*func)())
+  void addTask(void (*func)(void *), void *data)
   {
     if (pthread_mutex_lock(&runningMutex) != 0)
       throw std::system_error(errno, std::generic_category());
@@ -127,7 +127,7 @@ public:
         throw std::system_error(errno, std::generic_category());
       throw std::runtime_error("Cannot add more tasks");
     }
-    tasks.push(func);
+    tasks.push(std::make_pair(func, data));
     if (pthread_cond_signal(&tasksCond) != 0)
       throw std::system_error(errno, std::generic_category());
 
@@ -135,7 +135,7 @@ public:
       throw std::system_error(errno, std::generic_category());
   }
   std::vector<pthread_t> threads;
-  std::queue<void (*)()> tasks;
+  std::queue<std::pair<void (*)(void *), void *>> tasks;
   int running;
   bool exit;
   pthread_mutex_t threadsMutex;
