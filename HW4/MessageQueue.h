@@ -10,12 +10,14 @@
 
 #define QUEUE_MAX_LEN 100
 
+template <typename T>
 struct Task
 {
-  void (*handler)(std::string);
-  std::string msg;
+  void (*handler)(T);
+  T msg;
 };
 
+template <typename T>
 class MessageQueue
 {
 public:
@@ -34,7 +36,7 @@ public:
     if (pthread_attr_destroy(&attr) != 0)
       throw std::system_error(errno, std::generic_category());
   }
-  void addMessage(std::string msg)
+  void addMessage(T msg)
   {
     if (pthread_mutex_lock(&messagesMutex) != 0)
       throw std::system_error(errno, std::generic_category());
@@ -50,7 +52,7 @@ public:
     if (pthread_mutex_unlock(&messagesMutex) != 0)
       throw std::system_error(errno, std::generic_category());
   }
-  void registerHandler(void (*handler)(std::string))
+  void registerHandler(void (*handler)(T))
   {
     if (pthread_mutex_lock(&handlersMutex) != 0)
       throw std::system_error(errno, std::generic_category());
@@ -71,7 +73,7 @@ public:
         if (pthread_cond_wait(&mq->messagesCond, &mq->messagesMutex) != 0)
           throw std::system_error(errno, std::generic_category());
       }
-      std::string msg = mq->messages.front();
+      T msg = mq->messages.front();
       mq->messages.pop();
       if (pthread_mutex_unlock(&mq->messagesMutex) != 0)
         throw std::system_error(errno, std::generic_category());
@@ -81,7 +83,7 @@ public:
       pthread_t th[mq->handlers.size()];
       for (size_t i = 0; i < mq->handlers.size(); ++i)
       {
-        Task *task = new Task{mq->handlers[i], msg};
+        Task<T> *task = new Task<T>{mq->handlers[i], msg};
         if (pthread_create(&th[i], nullptr, executeTask, (void *)task) != 0)
           throw std::system_error(errno, std::generic_category());
       }
@@ -95,14 +97,14 @@ public:
     if (pthread_detach(pthread_self()) != 0)
       throw std::system_error(errno, std::generic_category());
 
-    Task *task = (Task *)args;
+    Task<T> *task = (Task<T> *)args;
     task->handler(task->msg);
     delete task;
   }
 
 private:
-  std::queue<std::string> messages;
-  std::vector<void (*)(std::string)> handlers;
+  std::queue<T> messages;
+  std::vector<void (*)(T)> handlers;
   pthread_mutex_t messagesMutex;
   pthread_cond_t messagesCond;
   pthread_mutex_t handlersMutex;

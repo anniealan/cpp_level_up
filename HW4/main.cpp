@@ -8,7 +8,7 @@ int main()
 
   try
   {
-    MessageQueue mq;
+    MessageQueue<std::string> mq;
 
     mq.registerHandler([](std::string msg)
                        {
